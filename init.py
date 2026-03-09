@@ -34,6 +34,8 @@ def download_data(use_quick=False):
     print("Downloading MNIST dataset (first run only caches to data/) ...")
     mnist = fetch_openml("mnist_784", version=1, as_frame=False, data_home=DATA_DIR)
     X, y = mnist.data, mnist.target
+    # Downcast to float32 to cut memory roughly in half on small instances.
+    X = X.astype("float32", copy=False)
     print(f"Fetched {X.shape[0]} samples with {X.shape[1]} features each.")
     return X, y
 
@@ -45,8 +47,9 @@ def train(X, y):
     )
 
     pipeline = Pipeline([
-        ("scaler", StandardScaler()),
-        ("clf", SGDClassifier(random_state=42, max_iter=10, n_jobs=-1)),
+        # with_mean=False avoids an extra dense copy; float32 input keeps memory low.
+        ("scaler", StandardScaler(with_mean=False)),
+        ("clf", SGDClassifier(random_state=42, max_iter=10, n_jobs=1)),
     ])
 
     print("Training model...")

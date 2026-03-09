@@ -35,8 +35,8 @@ echo "=== Installing requirements ==="
 pip install --upgrade pip
 pip install -r requirements.txt
 
-echo "=== Running init.py ==="
-nohup python init.py > init.log 2>&1 &
+echo "=== Running init.py (quick mode to keep memory small) ==="
+nohup python init.py --quick > init.log 2>&1 &
 INIT_PID=$!
 wait $INIT_PID
 
