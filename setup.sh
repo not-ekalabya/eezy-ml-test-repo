@@ -9,9 +9,14 @@ sudo apt-get install -y python3 python3-pip python3-venv curl
 
 echo "=== Setting up swap space to prevent OOM kills ==="
 if [ ! -f /swapfile ]; then
-    FREE_SPACE=$(df / | awk 'NR==2 {print int($4)}')
-    SWAP_SIZE=$(awk "BEGIN {printf \"%.0f\", $FREE_SPACE * 0.9 / 1024}")
-    echo "Free storage: ${FREE_SPACE}KB, allocating ${SWAP_SIZE}GB for swap (90%)"
+    # Work in GiB to avoid allocating petabyte-sized swap due to unit mistakes.
+    FREE_GB=$(df -B1 / | awk 'NR==2 {printf "%.0f", $4/1024/1024/1024}')
+    SWAP_SIZE=$(( FREE_GB * 9 / 10 ))   # target 90% of free space
+    # Keep swap within sane bounds: min 1 GiB, max 8 GiB.
+    if [ "$SWAP_SIZE" -lt 1 ]; then SWAP_SIZE=1; fi
+    if [ "$SWAP_SIZE" -gt 8 ]; then SWAP_SIZE=8; fi
+
+    echo "Free storage: ${FREE_GB}GB, allocating ${SWAP_SIZE}GB for swap (90% capped at 8GB)"
     sudo fallocate -l ${SWAP_SIZE}G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1G count=${SWAP_SIZE}
     sudo chmod 600 /swapfile
     sudo mkswap /swapfile
