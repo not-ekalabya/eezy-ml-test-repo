@@ -6,7 +6,8 @@ Usage:
 
 import os
 import joblib
-from sklearn.datasets import fetch_openml
+import argparse
+from sklearn.datasets import fetch_openml, load_digits
 from sklearn.linear_model import SGDClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
@@ -17,13 +18,23 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), "model")
 MODEL_PATH = os.path.join(MODELS_DIR, "model.joblib")
 
 
-def download_data():
-    """Download the MNIST dataset into the data directory."""
+def download_data(use_quick=False):
+    """
+    Fetch data for training.
+
+    - quick mode uses sklearn's built-in digits dataset (no download, tiny)
+    - full mode downloads MNIST once and caches it in DATA_DIR
+    """
     os.makedirs(DATA_DIR, exist_ok=True)
-    print("Downloading MNIST dataset...")
+    if use_quick:
+        print("Using built-in digits dataset (8x8, ~1.8k samples) for quick run.")
+        digits = load_digits()
+        return digits.data, digits.target
+
+    print("Downloading MNIST dataset (first run only caches to data/) ...")
     mnist = fetch_openml("mnist_784", version=1, as_frame=False, data_home=DATA_DIR)
     X, y = mnist.data, mnist.target
-    print(f"Downloaded {X.shape[0]} samples with {X.shape[1]} features each.")
+    print(f"Fetched {X.shape[0]} samples with {X.shape[1]} features each.")
     return X, y
 
 
@@ -54,6 +65,14 @@ def save_model(model):
 
 
 if __name__ == "__main__":
-    X, y = download_data()
+    parser = argparse.ArgumentParser(description="Train MNIST classifier.")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Use tiny built-in digits dataset to avoid download (fast, lower accuracy).",
+    )
+    args = parser.parse_args()
+
+    X, y = download_data(use_quick=args.quick)
     model = train(X, y)
     save_model(model)
