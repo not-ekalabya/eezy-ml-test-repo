@@ -50,7 +50,7 @@ def test_inference_batch():
 def test_server_health():
     resp = requests.get(f"{BASE_URL}/health", timeout=5)
     assert resp.status_code == 200
-    assert resp.json()["status"] == "ok"
+    assert resp.json()["status"] == "ok - auto deployment works!"
     _pass("test_server_health")
 
 
