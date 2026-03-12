@@ -4,6 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
+echo "=== Clearing /models and /data ==="
+for dir in /models /data; do
+    mkdir -p "$dir"
+    find "$dir" -mindepth 1 -exec rm -rf {} +
+done
+
 echo "=== Activating virtual environment ==="
 source venv/bin/activate
 

@@ -24,7 +24,7 @@ app = Flask(__name__)
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok - auto deployment works <test 2>!"})
+    return jsonify({"status": "ok - hard /models and /data reset <test 1>!"})
 
 
 @app.route("/test", methods=["GET"])

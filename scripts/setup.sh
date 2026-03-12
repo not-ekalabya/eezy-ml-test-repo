@@ -4,6 +4,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
+echo "=== Clearing /models and /data ==="
+for dir in /models /data; do
+    mkdir -p "$dir"
+    find "$dir" -mindepth 1 -exec rm -rf {} +
+done
+
 # If the virtual environment already exists, skip the full setup and just
 # update the installed packages then restart the server.
 if [ -d "venv" ]; then
