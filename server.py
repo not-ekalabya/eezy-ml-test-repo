@@ -24,7 +24,7 @@ app = Flask(__name__)
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok - real-time logging!"})
+    return jsonify({"status": "ok - real-time logging <test-1>!"})
 
 
 @app.route("/test", methods=["GET"])
