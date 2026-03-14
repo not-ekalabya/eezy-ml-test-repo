@@ -4,11 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-echo "=== Clearing /models and /data ==="
-for dir in /models /data; do
-    mkdir -p "$dir"
-    find "$dir" -mindepth 1 -exec rm -rf {} +
-done
+echo "=== Clearing project model and data directories ==="
+rm -f model/model.joblib
+mkdir -p data model
 
 echo "=== Activating virtual environment ==="
 source venv/bin/activate
@@ -16,8 +14,8 @@ source venv/bin/activate
 echo "=== Stopping existing server (if running) ==="
 pkill -f "python server.py" || true
 
-echo "=== Running init.py (quick mode to keep memory small) ==="
-nohup python init.py --quick > init.log 2>&1 &
+echo "=== Running init.py ==="
+nohup python init.py > init.log 2>&1 &
 INIT_PID=$!
 wait $INIT_PID
 
