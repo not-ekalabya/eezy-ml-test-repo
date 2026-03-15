@@ -4,21 +4,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
-MODEL_PATH="model/model.joblib"
+MODEL_DIR="model/qwen3-4b"
+MODEL_READY="model/model.ready"
 DATA_DIR="data"
 
 validate_model() {
-    if [ ! -f "$MODEL_PATH" ]; then
+    if [ ! -d "$MODEL_DIR" ] || [ ! -f "$MODEL_READY" ]; then
         return 1
     fi
 
-    python -c "import joblib; m=joblib.load('$MODEL_PATH'); raise SystemExit(0 if m.named_steps['scaler'].n_features_in_ == 784 else 1)"
+    python -c "from transformers import AutoConfig, AutoTokenizer; AutoConfig.from_pretrained('$MODEL_DIR'); AutoTokenizer.from_pretrained('$MODEL_DIR')"
 }
 
 rebuild_model() {
-    echo "=== Rebuilding MNIST model ==="
-    rm -f "$MODEL_PATH"
-    mkdir -p "$DATA_DIR" "$(dirname "$MODEL_PATH")"
+    echo "=== Rebuilding Qwen3-4B model cache ==="
+    rm -rf "$MODEL_DIR" "$MODEL_READY"
+    mkdir -p "$DATA_DIR" "model"
     python init.py
 }
 

@@ -1,81 +1,90 @@
-"""init.py — Download MNIST, train a scikit-learn model, and save it.
+"""init.py — Download and cache Qwen3-4B weights for local inference.
 
 Usage:
     python init.py
 """
 
-import os
-import joblib
 import argparse
-from sklearn.datasets import fetch_openml, load_digits
-from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+import json
+import os
+from datetime import datetime, timezone
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "model")
-MODEL_PATH = os.path.join(MODELS_DIR, "model.joblib")
+MODEL_CACHE_DIR = os.path.join(MODELS_DIR, "qwen3-4b")
+MODEL_READY_PATH = os.path.join(MODELS_DIR, "model.ready")
+MODEL_META_PATH = os.path.join(MODELS_DIR, "model.meta.json")
+DEFAULT_MODEL_ID = "Qwen/Qwen3-4B"
 
 
-def download_data(use_quick=False):
-    """
-    Fetch data for training.
-
-    - quick mode uses sklearn's built-in digits dataset (no download, tiny)
-    - full mode downloads MNIST once and caches it in DATA_DIR
-    """
-    os.makedirs(DATA_DIR, exist_ok=True)
-    if use_quick:
-        print("Using built-in digits dataset (8x8, ~1.8k samples) for quick run.")
-        digits = load_digits()
-        return digits.data, digits.target
-
-    print("Downloading MNIST dataset (first run only caches to data/) ...")
-    mnist = fetch_openml("mnist_784", version=1, as_frame=False, data_home=DATA_DIR)
-    X, y = mnist.data, mnist.target
-    # Downcast to float32 to cut memory roughly in half on small instances.
-    X = X.astype("float32", copy=False)
-    print(f"Fetched {X.shape[0]} samples with {X.shape[1]} features each.")
-    return X, y
+def _download_dtype() -> torch.dtype:
+    if torch.cuda.is_available():
+        return torch.float16
+    return torch.float32
 
 
-def train(X, y):
-    """Train an SGD classifier pipeline on the given data and return it."""
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+def cache_model(model_id: str, force: bool = False) -> None:
+    """Download and save the tokenizer/model locally for offline startup."""
+    os.makedirs(MODELS_DIR, exist_ok=True)
+
+    if os.path.exists(MODEL_READY_PATH) and not force:
+        print(f"Model already prepared at '{MODEL_CACHE_DIR}'.")
+        return
+
+    if force and os.path.isdir(MODEL_CACHE_DIR):
+        print("Force refresh requested, clearing existing model cache...")
+        for root, dirs, files in os.walk(MODEL_CACHE_DIR, topdown=False):
+            for file_name in files:
+                os.remove(os.path.join(root, file_name))
+            for dir_name in dirs:
+                os.rmdir(os.path.join(root, dir_name))
+        os.rmdir(MODEL_CACHE_DIR)
+
+    torch_dtype = _download_dtype()
+    print(f"Downloading '{model_id}' with dtype={torch_dtype} ...")
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        torch_dtype=torch_dtype,
+        low_cpu_mem_usage=True,
+        device_map="auto" if torch.cuda.is_available() else None,
     )
 
-    pipeline = Pipeline([
-        # with_mean=False avoids an extra dense copy; float32 input keeps memory low.
-        ("scaler", StandardScaler(with_mean=False)),
-        ("clf", SGDClassifier(random_state=42, max_iter=10, n_jobs=1)),
-    ])
+    tokenizer.save_pretrained(MODEL_CACHE_DIR)
+    model.save_pretrained(MODEL_CACHE_DIR)
 
-    print("Training model...")
-    pipeline.fit(X_train, y_train)
+    with open(MODEL_META_PATH, "w", encoding="utf-8") as meta_fp:
+        json.dump(
+            {
+                "model_id": model_id,
+                "cached_at": datetime.now(timezone.utc).isoformat(),
+                "dtype": str(torch_dtype),
+            },
+            meta_fp,
+            indent=2,
+        )
 
-    score = pipeline.score(X_test, y_test)
-    print(f"Test accuracy: {score:.4f}")
-    return pipeline
+    with open(MODEL_READY_PATH, "w", encoding="utf-8") as ready_fp:
+        ready_fp.write("ready\n")
 
-
-def save_model(model):
-    """Persist the trained model to the models directory."""
-    os.makedirs(MODELS_DIR, exist_ok=True)
-    joblib.dump(model, MODEL_PATH)
-    print(f"Model saved to {MODEL_PATH}")
+    print(f"Model cached successfully at '{MODEL_CACHE_DIR}'.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train MNIST classifier.")
+    parser = argparse.ArgumentParser(description="Prepare local Qwen3-4B artifacts.")
     parser.add_argument(
-        "--quick",
+        "--model-id",
+        default=os.environ.get("QWEN_MODEL_ID", DEFAULT_MODEL_ID),
+        help="Hugging Face model ID to cache locally.",
+    )
+    parser.add_argument(
+        "--force",
         action="store_true",
-        help="Use tiny built-in digits dataset to avoid download (fast, lower accuracy).",
+        help="Re-download model assets even if already prepared.",
     )
     args = parser.parse_args()
 
-    X, y = download_data(use_quick=args.quick)
-    model = train(X, y)
-    save_model(model)
+    cache_model(model_id=args.model_id, force=args.force)

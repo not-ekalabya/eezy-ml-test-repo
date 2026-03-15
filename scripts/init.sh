@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR/.."
 
 echo "=== Clearing project model and data directories ==="
-rm -f model/model.joblib
+rm -rf model/qwen3-4b model/model.ready model/model.meta.json
 mkdir -p data model
 
 echo "=== Activating virtual environment ==="
