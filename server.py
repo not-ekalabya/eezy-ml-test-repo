@@ -8,7 +8,8 @@ Endpoints:
     POST /predict         Accepts JSON and returns model predictions.
 
 Request body for /predict:
-    Single sample:  {"features": "prompt", "max_new_tokens": 96}
+    Single prompt:  {"features": "prompt", "max_new_tokens": 96}
+    Single chat:    {"features": [{"role": "user", "content": "prompt"}]}
     Batch:          {"features": [["prompt 1"], ["prompt 2"]], "temperature": 0.7}
 """
 
@@ -20,6 +21,14 @@ from flask import Flask, request, jsonify
 from inference import load_model, predict, predict_batch
 
 app = Flask(__name__)
+
+
+def _is_batch_payload(features):
+    if not isinstance(features, list) or not features:
+        return False
+    if all(isinstance(item, dict) for item in features):
+        return False
+    return any(isinstance(item, list) for item in features)
 
 
 @app.route("/health", methods=["GET"])
@@ -62,7 +71,7 @@ def predict_endpoint():
     }
 
     try:
-        if features and isinstance(features[0], list):
+        if _is_batch_payload(features):
             predictions = predict_batch(features, options=options)
             return jsonify({"predictions": predictions})
         else:

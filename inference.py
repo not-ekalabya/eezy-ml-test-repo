@@ -5,7 +5,7 @@ lazily on first call and cached for subsequent calls.
 """
 
 import os
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -32,18 +32,42 @@ def _runtime_dtype() -> torch.dtype:
     return torch.float32
 
 
-def _normalize_prompt(features: Any) -> str:
-    if isinstance(features, str):
-        prompt = features
-    elif isinstance(features, list):
-        prompt = " ".join(str(part) for part in features)
-    else:
-        raise ValueError("Features must be either a string or a list of values.")
+def _normalize_chat_message(message: Any) -> Dict[str, str]:
+    if not isinstance(message, dict):
+        raise ValueError("Each chat message must be an object with 'role' and 'content'.")
 
-    prompt = prompt.strip()
+    role = message.get("role")
+    content = message.get("content")
+    if not isinstance(role, str) or not role.strip():
+        raise ValueError("Each chat message must include a non-empty string 'role'.")
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("Each chat message must include a non-empty string 'content'.")
+
+    return {"role": role.strip(), "content": content.strip()}
+
+
+def _normalize_messages(features: Any) -> List[Dict[str, str]]:
+    if isinstance(features, str):
+        prompt = features.strip()
+        if not prompt:
+            raise ValueError("Prompt must not be empty.")
+        return [{"role": "user", "content": prompt}]
+
+    if isinstance(features, dict):
+        return [_normalize_chat_message(features)]
+
+    if not isinstance(features, list) or not features:
+        raise ValueError(
+            "Features must be a non-empty string, message object, list of values, or list of chat messages."
+        )
+
+    if all(isinstance(item, dict) for item in features):
+        return [_normalize_chat_message(item) for item in features]
+
+    prompt = " ".join(str(part) for part in features).strip()
     if not prompt:
         raise ValueError("Prompt must not be empty.")
-    return prompt
+    return [{"role": "user", "content": prompt}]
 
 
 def _normalize_generation_options(
@@ -101,13 +125,11 @@ def load_model() -> Tuple[Any, Any]:
     return _tokenizer, _model
 
 
-def predict(features: list, options: Optional[Dict[str, Any]] = None) -> str:
-    """Run text generation for a single prompt payload."""
-    prompt = _normalize_prompt(features)
+def predict(features: Any, options: Optional[Dict[str, Any]] = None) -> str:
+    """Run text generation for a single prompt or chat payload."""
+    messages = _normalize_messages(features)
     generation_options = _normalize_generation_options(options)
     tokenizer, model = load_model()
-
-    messages = [{"role": "user", "content": prompt}]
     enable_thinking = generation_options["enable_thinking"]
 
     try:
@@ -155,7 +177,7 @@ def predict(features: list, options: Optional[Dict[str, Any]] = None) -> str:
 
 
 def predict_batch(samples: list, options: Optional[Dict[str, Any]] = None) -> list:
-    """Run text generation for a batch of prompt payloads."""
+    """Run text generation for a batch of prompt or chat payloads."""
     if not isinstance(samples, list) or not samples:
         raise ValueError("Batch features must be a non-empty list.")
     return [predict(sample, options=options) for sample in samples]
