@@ -23,14 +23,24 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "oneOf": [
-              {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "$ref": "#/$defs/chatMessage"
-                }
-              }
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/chatMessage"
+            }
+          }
+        }
+      ]
+    },
+    "max_new_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 96,
+      "description": "Maximum number of new tokens to generate."
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0,
       "default": 0.7,
       "description": "Sampling temperature. Lower values are more deterministic."
     },
@@ -42,22 +52,16 @@
       "description": "Nucleus sampling threshold."
     },
     "enable_thinking": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether to enable the model's thinking mode when supported."
     }
   },
-                          "content": "Return the word one."
+  "$defs": {
     "chatMessage": {
       "type": "object",
       "additionalProperties": false,
-                        {
-                          "role": "user",
-                          "content": "Return the word two."
-                        }
-                      ],
-                      [
-                        {
-                          "role": "user",
-                          "content": "Return the word three."
-                        }
+      "required": [
         "role",
         "content"
       ],
@@ -75,42 +79,24 @@
   },
   "examples": [
     {
-      "features": "Answer with one short sentence about deployment.",
-      "max_new_tokens": 96,
-      "temperature": 0.7,
-      "top_p": 0.9,
-      "enable_thinking": true
-    },
-    {
-      "features": {
-        "role": "user",
-        "content": "Answer with one short sentence about deployment."
-      },
-      "max_new_tokens": 96
-    },
-    {
       "features": [
         {
           "role": "user",
           "content": "Answer with one short sentence about deployment."
         }
       ],
-      "max_new_tokens": 96
-    },
-    {
-      "features": [
-        "Return",
-        "only",
-        "the",
-        "word",
-        "alpha."
-      ],
-      "max_new_tokens": 32
+      "max_new_tokens": 96,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "enable_thinking": true
     },
     {
       "features": [
         [
-          "Return the word one."
+          {
+            "role": "user",
+            "content": "Return the word one."
+          }
         ],
         [
           {
@@ -119,7 +105,10 @@
           }
         ],
         [
-          "Return the word three."
+          {
+            "role": "user",
+            "content": "Return the word three."
+          }
         ]
       ],
       "temperature": 0.2,
