@@ -8,8 +8,8 @@ Endpoints:
     POST /predict         Accepts JSON and returns model predictions.
 
 Request body for /predict:
-    Single sample:  {"features": [<784 floats>]}
-    Batch:          {"features": [[<784 floats>], ...]}
+    Single sample:  {"features": "prompt", "max_new_tokens": 96}
+    Batch:          {"features": [["prompt 1"], ["prompt 2"]], "temperature": 0.7}
 """
 
 import os
@@ -55,13 +55,18 @@ def predict_endpoint():
         return jsonify({"error": "Request body must be JSON with a 'features' field."}), 400
 
     features = body["features"]
+    options = {
+        key: body[key]
+        for key in ("max_new_tokens", "temperature", "top_p", "enable_thinking")
+        if key in body
+    }
 
     try:
         if features and isinstance(features[0], list):
-            predictions = predict_batch(features)
+            predictions = predict_batch(features, options=options)
             return jsonify({"predictions": predictions})
         else:
-            prediction = predict(features)
+            prediction = predict(features, options=options)
             return jsonify({"prediction": prediction})
     except (ValueError, FileNotFoundError) as exc:
         return jsonify({"error": str(exc)}), 422

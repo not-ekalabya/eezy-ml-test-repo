@@ -5,7 +5,7 @@ lazily on first call and cached for subsequent calls.
 """
 
 import os
-from typing import Any, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -17,6 +17,13 @@ THINK_END_TOKEN_ID = 151668
 
 _model = None
 _tokenizer = None
+
+DEFAULT_GENERATION_OPTIONS = {
+    "max_new_tokens": 96,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "enable_thinking": True,
+}
 
 
 def _runtime_dtype() -> torch.dtype:
@@ -37,6 +44,38 @@ def _normalize_prompt(features: Any) -> str:
     if not prompt:
         raise ValueError("Prompt must not be empty.")
     return prompt
+
+
+def _normalize_generation_options(
+    options: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    merged = {**DEFAULT_GENERATION_OPTIONS, **(options or {})}
+
+    try:
+        merged["max_new_tokens"] = int(merged["max_new_tokens"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("max_new_tokens must be an integer.") from exc
+    if merged["max_new_tokens"] < 1:
+        raise ValueError("max_new_tokens must be at least 1.")
+
+    try:
+        merged["temperature"] = float(merged["temperature"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("temperature must be a number.") from exc
+    if merged["temperature"] < 0:
+        raise ValueError("temperature must be greater than or equal to 0.")
+
+    try:
+        merged["top_p"] = float(merged["top_p"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("top_p must be a number.") from exc
+    if not 0 < merged["top_p"] <= 1:
+        raise ValueError("top_p must be greater than 0 and less than or equal to 1.")
+
+    if not isinstance(merged["enable_thinking"], bool):
+        raise ValueError("enable_thinking must be a boolean.")
+
+    return merged
 
 
 def load_model() -> Tuple[Any, Any]:
@@ -62,17 +101,14 @@ def load_model() -> Tuple[Any, Any]:
     return _tokenizer, _model
 
 
-def predict(features: list) -> str:
+def predict(features: list, options: Optional[Dict[str, Any]] = None) -> str:
     """Run text generation for a single prompt payload."""
     prompt = _normalize_prompt(features)
+    generation_options = _normalize_generation_options(options)
     tokenizer, model = load_model()
 
     messages = [{"role": "user", "content": prompt}]
-    enable_thinking = os.environ.get("ENABLE_THINKING", "true").lower() in {
-        "1",
-        "true",
-        "yes",
-    }
+    enable_thinking = generation_options["enable_thinking"]
 
     try:
         text = tokenizer.apply_chat_template(
@@ -99,10 +135,10 @@ def predict(features: list) -> str:
     with torch.no_grad():
         output = model.generate(
             **model_inputs,
-            max_new_tokens=int(os.environ.get("MAX_NEW_TOKENS", "96")),
+            max_new_tokens=generation_options["max_new_tokens"],
             do_sample=True,
-            temperature=float(os.environ.get("TEMPERATURE", "0.7")),
-            top_p=float(os.environ.get("TOP_P", "0.9")),
+            temperature=generation_options["temperature"],
+            top_p=generation_options["top_p"],
         )
 
     output_ids = output[0][len(model_inputs["input_ids"][0]):].tolist()
@@ -118,8 +154,8 @@ def predict(features: list) -> str:
     return content
 
 
-def predict_batch(samples: list) -> list:
+def predict_batch(samples: list, options: Optional[Dict[str, Any]] = None) -> list:
     """Run text generation for a batch of prompt payloads."""
     if not isinstance(samples, list) or not samples:
         raise ValueError("Batch features must be a non-empty list.")
-    return [predict(sample) for sample in samples]
+    return [predict(sample, options=options) for sample in samples]
