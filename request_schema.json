@@ -10,15 +10,8 @@
   ],
   "properties": {
     "features": {
-      "description": "Either a single prompt string, a single chat message object, a chat represented as a list of message objects, a single prompt represented as a list of primitive values, or a batch represented as a list of prompt/chat payloads.",
+      "description": "Either a single chat represented as a list of message objects, or a batch represented as a list of chat message lists.",
       "oneOf": [
-        {
-          "type": "string",
-          "minLength": 1
-        },
-        {
-          "$ref": "#/$defs/chatMessage"
-        },
         {
           "type": "array",
           "minItems": 1,
@@ -30,33 +23,7 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "type": [
-              "string",
-              "number",
-              "integer",
-              "boolean",
-              "null"
-            ]
-          }
-        },
-        {
-          "type": "array",
-          "minItems": 1,
-          "items": {
             "oneOf": [
-              {
-                "type": "array",
-                "minItems": 1,
-                "items": {
-                  "type": [
-                    "string",
-                    "number",
-                    "integer",
-                    "boolean",
-                    "null"
-                  ]
-                }
-              },
               {
                 "type": "array",
                 "minItems": 1,
@@ -64,20 +31,6 @@
                   "$ref": "#/$defs/chatMessage"
                 }
               }
-            ]
-          }
-        }
-      ]
-    },
-    "max_new_tokens": {
-      "type": "integer",
-      "minimum": 1,
-      "default": 96,
-      "description": "Maximum number of new tokens to generate."
-    },
-    "temperature": {
-      "type": "number",
-      "minimum": 0,
       "default": 0.7,
       "description": "Sampling temperature. Lower values are more deterministic."
     },
@@ -89,16 +42,22 @@
       "description": "Nucleus sampling threshold."
     },
     "enable_thinking": {
-      "type": "boolean",
-      "default": true,
-      "description": "Whether to enable the model's thinking mode when supported."
     }
   },
-  "$defs": {
+                          "content": "Return the word one."
     "chatMessage": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
+                        {
+                          "role": "user",
+                          "content": "Return the word two."
+                        }
+                      ],
+                      [
+                        {
+                          "role": "user",
+                          "content": "Return the word three."
+                        }
         "role",
         "content"
       ],
