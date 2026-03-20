@@ -33,7 +33,7 @@ def test_model_file_exists():
 
 def test_inference_single():
     from inference import predict
-    sample = "Respond with exactly one short greeting."
+    sample = [{"role": "user", "content": "Respond with exactly one short greeting."}]
     result = predict(sample)
     assert isinstance(result, str) and result.strip(), f"Unexpected result: {result!r}"
     _pass("test_inference_single", f"prediction={result}")
@@ -42,10 +42,10 @@ def test_inference_single():
 def test_inference_batch():
     from inference import predict_batch
     samples = [
-        "Return only the word alpha.",
-        "Return only the word beta.",
-        "Return only the word gamma.",
-        "Return only the word delta.",
+        [{"role": "user", "content": "Return only the word alpha."}],
+        [{"role": "user", "content": "Return only the word beta."}],
+        [{"role": "user", "content": "Return only the word gamma."}],
+        [{"role": "user", "content": "Return only the word delta."}],
     ]
     results = predict_batch(samples)
     assert len(results) == 4
@@ -56,7 +56,7 @@ def test_inference_batch():
 def test_inference_rejects_invalid_generation_options():
     from inference import predict
     try:
-        predict("Return the word test.", options={"top_p": 2})
+        predict([{"role": "user", "content": "Return the word test."}], options={"top_p": 2})
     except ValueError as exc:
         assert "top_p" in str(exc)
         _pass("test_inference_rejects_invalid_generation_options")
@@ -72,7 +72,7 @@ def test_server_health():
 
 
 def test_server_predict_single():
-    sample = "Answer with one short sentence about deployment."
+    sample = [{"role": "user", "content": "Answer with one short sentence about deployment."}]
     resp = requests.post(f"{BASE_URL}/predict", json={"features": sample}, timeout=5)
     assert resp.status_code == 200, f"HTTP {resp.status_code}: {resp.text}"
     body = resp.json()
@@ -82,9 +82,9 @@ def test_server_predict_single():
 
 def test_server_predict_batch():
     samples = [
-        ["Return the word one."],
-        ["Return the word two."],
-        ["Return the word three."],
+        [{"role": "user", "content": "Return the word one."}],
+        [{"role": "user", "content": "Return the word two."}],
+        [{"role": "user", "content": "Return the word three."}],
     ]
     resp = requests.post(f"{BASE_URL}/predict", json={"features": samples}, timeout=5)
     assert resp.status_code == 200, f"HTTP {resp.status_code}: {resp.text}"
@@ -96,7 +96,7 @@ def test_server_predict_batch():
 
 def test_server_predict_accepts_generation_options():
     payload = {
-        "features": "Return one short line about inference.",
+        "features": [{"role": "user", "content": "Return one short line about inference."}],
         "max_new_tokens": 24,
         "temperature": 0.2,
         "top_p": 0.8,

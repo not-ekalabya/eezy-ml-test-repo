@@ -16,17 +16,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run one inference call against /predict")
     parser.add_argument(
         "--server-url",
-        default="http://100.24.117.137:5000",
+        default="http://localhost:5000",
         help="Base URL of the inference server",
     )
     parser.add_argument(
         "--prompt",
-        default=r"""	
-Let $x,y$ and $z$ be positive real numbers that satisfy the following system of equations:
-\[\log_2\left({x \over yz}\right) = {1 \over 2}\]
-\[\log_2\left({y \over xz}\right) = {1 \over 3}\]
-\[\log_2\left({z \over xy}\right) = {1 \over 4}\]
-Then the value of $\left|\log_2(x^4y^3z^2)\right|$ is $\tfrac{m}{n}$ where $m$ and $n$ are relatively prime positive integers. Find $m+n$.""",
+        default=r"Write a haiku about model deployment.",
         help="Prompt text sent as features",
     )
     parser.add_argument(
@@ -69,7 +64,14 @@ Then the value of $\left|\log_2(x^4y^3z^2)\right|$ is $\tfrac{m}{n}$ where $m$ a
     args = parser.parse_args()
 
     url = args.server_url.rstrip("/") + "/predict"
-    payload = {"features": args.prompt}
+    payload = {
+        "features": [
+            {
+                "role": "user",
+                "content": args.prompt,
+            }
+        ]
+    }
     if args.max_new_tokens is not None:
         payload["max_new_tokens"] = args.max_new_tokens
     if args.temperature is not None:
@@ -79,8 +81,29 @@ Then the value of $\left|\log_2(x^4y^3z^2)\right|$ is $\tfrac{m}{n}$ where $m$ a
     if args.enable_thinking is not None:
         payload["enable_thinking"] = args.enable_thinking
 
-    response = requests.post(url, json=payload, timeout=args.timeout)
-    response.raise_for_status()
+    try:
+        response = requests.post(url, json=payload, timeout=args.timeout)
+        response.raise_for_status()
+    except requests.exceptions.ConnectionError as exc:
+        print(f"Connection failed for {url}.")
+        print(
+            "Make sure the server is running and reachable, or pass --server-url "
+            "with the correct host and port."
+        )
+        print(f"Details: {exc}")
+        return 1
+    except requests.exceptions.Timeout as exc:
+        print(f"Request timed out after {args.timeout} seconds.")
+        print(f"Details: {exc}")
+        return 1
+    except requests.exceptions.HTTPError as exc:
+        print(f"Server returned HTTP {response.status_code} for {url}.")
+        try:
+            print(response.json())
+        except ValueError:
+            print(response.text)
+        print(f"Details: {exc}")
+        return 1
 
     body = response.json()
     print(json.dumps(body, indent=2, ensure_ascii=True))

@@ -47,27 +47,13 @@ def _normalize_chat_message(message: Any) -> Dict[str, str]:
 
 
 def _normalize_messages(features: Any) -> List[Dict[str, str]]:
-    if isinstance(features, str):
-        prompt = features.strip()
-        if not prompt:
-            raise ValueError("Prompt must not be empty.")
-        return [{"role": "user", "content": prompt}]
-
-    if isinstance(features, dict):
-        return [_normalize_chat_message(features)]
-
     if not isinstance(features, list) or not features:
-        raise ValueError(
-            "Features must be a non-empty string, message object, list of values, or list of chat messages."
-        )
+        raise ValueError("Features must be a non-empty list of chat messages.")
 
     if all(isinstance(item, dict) for item in features):
         return [_normalize_chat_message(item) for item in features]
 
-    prompt = " ".join(str(part) for part in features).strip()
-    if not prompt:
-        raise ValueError("Prompt must not be empty.")
-    return [{"role": "user", "content": prompt}]
+    raise ValueError("Features must be a list of chat messages with 'role' and 'content'.")
 
 
 def _normalize_generation_options(
@@ -126,7 +112,7 @@ def load_model() -> Tuple[Any, Any]:
 
 
 def predict(features: Any, options: Optional[Dict[str, Any]] = None) -> str:
-    """Run text generation for a single prompt or chat payload."""
+    """Run text generation for a single chat payload (message list)."""
     messages = _normalize_messages(features)
     generation_options = _normalize_generation_options(options)
     tokenizer, model = load_model()
@@ -177,7 +163,9 @@ def predict(features: Any, options: Optional[Dict[str, Any]] = None) -> str:
 
 
 def predict_batch(samples: list, options: Optional[Dict[str, Any]] = None) -> list:
-    """Run text generation for a batch of prompt or chat payloads."""
+    """Run text generation for a batch of chat payloads (message lists)."""
     if not isinstance(samples, list) or not samples:
         raise ValueError("Batch features must be a non-empty list.")
+    if not all(isinstance(sample, list) and sample for sample in samples):
+        raise ValueError("Batch features must be a non-empty list of non-empty chat message lists.")
     return [predict(sample, options=options) for sample in samples]

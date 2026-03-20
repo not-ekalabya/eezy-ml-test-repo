@@ -8,9 +8,8 @@ Endpoints:
     POST /predict         Accepts JSON and returns model predictions.
 
 Request body for /predict:
-    Single prompt:  {"features": "prompt", "max_new_tokens": 96}
-    Single chat:    {"features": [{"role": "user", "content": "prompt"}]}
-    Batch:          {"features": [["prompt 1"], ["prompt 2"]], "temperature": 0.7}
+    Message list:   {"features": [{"role": "user", "content": "prompt"}], "max_new_tokens": 96}
+    Batch list:     {"features": [[{"role": "user", "content": "prompt 1"}], [{"role": "user", "content": "prompt 2"}]], "temperature": 0.7}
 """
 
 import os
