@@ -16,7 +16,7 @@ MODELS_DIR = os.path.join(os.path.dirname(__file__), "model")
 MODEL_CACHE_DIR = os.path.join(MODELS_DIR, "qwen3-4b")
 MODEL_READY_PATH = os.path.join(MODELS_DIR, "model.ready")
 MODEL_META_PATH = os.path.join(MODELS_DIR, "model.meta.json")
-DEFAULT_MODEL_ID = "Qwen/Qwen3-8B"
+DEFAULT_MODEL_ID = "Qwen/Qwen3-4B"
 
 
 def _download_dtype() -> torch.dtype:
